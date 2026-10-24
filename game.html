@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Play | Abhilasha Singh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .hud{display:flex;justify-content:center;align-items:center;gap:24px;flex-wrap:wrap;
+      margin:30px 0;font-family:"Space Mono",monospace}
+    .hud button{cursor:pointer}
+    .board{display:grid;gap:14px;margin:0 auto;transition:max-width .2s}
+    .card{aspect-ratio:1;background:none;border:0;padding:0;perspective:600px;cursor:pointer}
+    .inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;
+      transition:transform .3s steps(5)}
+    .card.flipped .inner{transform:rotateY(180deg)}
+    .face{position:absolute;inset:0;display:grid;place-items:center;
+      -webkit-backface-visibility:hidden;backface-visibility:hidden;
+      border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+    .back{background:var(--blue);font-family:"Pixelify Sans",sans-serif;font-size:2rem}
+    .card:hover .back{background:var(--yellow)}
+    .front{background:#fff;transform:rotateY(180deg)}
+    .front img{width:50%}
+    .card.matched .front{background:#e3f5d8}
+    .free{aspect-ratio:1;display:grid;place-items:center;background:var(--yellow);
+      border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);
+      font-family:"Pixelify Sans",sans-serif;font-size:2.4rem}
+    .win{display:none;max-width:480px;margin:40px auto 0;text-align:center;background:#fff;
+      border:2px solid var(--ink);box-shadow:6px 6px 0 var(--green);padding:24px;
+      font-family:"Pixelify Sans",sans-serif;font-size:1.4rem}
+    .win.show{display:block}
+    .win .px-btn{margin-top:16px;cursor:pointer}
+  </style>
+</head>
+<body>
+
+  <header class="nav">
+    <a class="logo" href="index.html">AS</a>
+    <a class="nav-email" href="mailto:abhilashawork22@gmail.com">abhilashawork22@gmail.com</a>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="index.html#work">Work</a>
+      <a href="index.html#stack">Stack</a>
+    </nav>
+  </header>
+
+  <main class="section container">
+    <h2 class="section-title">MEMORY <span>MATCH</span></h2>
+
+    <div class="hud">
+      <span>Level: <b id="lvl">1</b>/2</span>
+      <span>Moves: <b id="moves">0</b></span>
+      <span>Pairs: <b id="pairs">0</b>/<b id="total">0</b></span>
+      <button class="px-btn" id="restart">Restart</button>
+    </div>
+
+    <div class="board" id="board"></div>
+
+    <div class="win" id="win">
+      <span id="winTitle"></span><br>
+      <span style="font-size:1rem">Finished in <b id="finalMoves"></b> moves</span><br>
+      <button class="px-btn" id="next"></button>
+    </div>
+  </main>
+
+  <script>
+    const ICONS = ["html5/html5-original","css3/css3-original","javascript/javascript-original",
+      "react/react-original","python/python-original","git/git-original",
+      "bootstrap/bootstrap-original","wordpress/wordpress-plain"];
+    const LEVELS = [3, 4]; // grid sizes
+
+    const board = document.getElementById("board");
+    const winBox = document.getElementById("win");
+    let level = 0, total = 0, first = null, lock = false, moves = 0, pairs = 0;
+
+    function show() {
+      document.getElementById("lvl").textContent = level + 1;
+      document.getElementById("moves").textContent = moves;
+      document.getElementById("pairs").textContent = pairs;
+      document.getElementById("total").textContent = total;
+    }
+
+    function start() {
+      const size = LEVELS[level];
+      total = Math.floor(size * size / 2);
+      board.innerHTML = "";
+      board.style.gridTemplateColumns = `repeat(${size},1fr)`;
+      board.style.maxWidth = size === 3 ? "360px" : "480px";
+      moves = 0; pairs = 0; first = null; lock = false;
+      winBox.classList.remove("show");
+      show();
+
+      const picks = ICONS.slice(0, total);
+      const cards = [...picks, ...picks].sort(() => Math.random() - 0.5);
+      if (size * size % 2) cards.splice(Math.floor(cards.length / 2), 0, "FREE"); // center tile
+
+      cards.forEach(p => {
+        if (p === "FREE") {
+          const f = document.createElement("div");
+          f.className = "free";
+          f.textContent = "★";
+          board.appendChild(f);
+          return;
+        }
+        const c = document.createElement("button");
+        c.className = "card";
+        c.dataset.k = p;
+        c.innerHTML =
+          `<div class="inner"><div class="face back">?</div>` +
+          `<div class="face front"><img alt="" src="https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/${p}.svg"></div></div>`;
+        c.addEventListener("click", () => flip(c));
+        board.appendChild(c);
+      });
+    }
+
+    function flip(c) {
+      if (lock || c.classList.contains("flipped")) return;
+      c.classList.add("flipped");
+      if (!first) { first = c; return; }
+
+      moves++;
+      if (first.dataset.k === c.dataset.k) {
+        first.classList.add("matched");
+        c.classList.add("matched");
+        first = null; pairs++; show();
+        if (pairs === total) setTimeout(win, 500);
+      } else {
+        lock = true;
+        const a = first; first = null; show();
+        setTimeout(() => {
+          a.classList.remove("flipped");
+          c.classList.remove("flipped");
+          lock = false;
+        }, 800);
+      }
+    }
+
+    function win() {
+      const last = level === LEVELS.length - 1;
+      document.getElementById("winTitle").textContent = last ? "YOU WIN!" : "LEVEL " + (level + 1) + " CLEAR!";
+      document.getElementById("finalMoves").textContent = moves;
+      document.getElementById("next").textContent = last ? "Play again" : "Next level →";
+      winBox.classList.add("show");
+    }
+
+    document.getElementById("restart").onclick = start;
+    document.getElementById("next").onclick = () => {
+      level = level < LEVELS.length - 1 ? level + 1 : 0;
+      start();
+    };
+    start();
+  </script>
+</body>
+</html>

@@ -269,3 +269,4 @@ resumeModal.addEventListener("click", e => {
 document.addEventListener("keydown", e => {
     if (e.key === "Escape") closeResume();
 });
+if (e.key === ' ' && !run && document.activeElement === c) reset();
